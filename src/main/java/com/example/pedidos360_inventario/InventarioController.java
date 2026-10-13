@@ -8,7 +8,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/inventario")
+@RequestMapping("/v1/inventario")
 public class InventarioController {
 
     private final Map<String, Integer> stock = new HashMap<>();
