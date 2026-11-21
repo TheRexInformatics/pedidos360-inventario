@@ -6,12 +6,21 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @RestController
 @RequestMapping("/v1/inventario")
 public class InventarioController {
 
-    private final Map<String, Integer> stock = new HashMap<>();
+    private final Map<String, Integer> stock = new ConcurrentHashMap<>();
+
+    private static final Map<Long, String> CATALOGO_IDS = Map.of(
+        1L, "Hamburguesa Triple",
+        2L, "Papas Supremas",
+        3L, "Bebida Grande",
+        4L, "Pizza Familiar",
+        5L, "Pastel de Chocolate"
+    );
 
     public InventarioController() {
         stock.put("Hamburguesa Triple", 50);
@@ -21,15 +30,22 @@ public class InventarioController {
         stock.put("Pastel de Chocolate", 20);
     }
 
-    // Obtener todo el inventario
+    public void descontarPorId(Long productoId, int cantidad) {
+        String item = CATALOGO_IDS.getOrDefault(productoId, "Hamburguesa Triple");
+        stock.computeIfPresent(item, (k, stockActual) -> {
+            int nuevoStock = Math.max(0, stockActual - cantidad);
+            System.out.println("<<< [STOCK ACTUALIZADO] " + item + ": " + stockActual + " -> " + nuevoStock);
+            return nuevoStock;
+        });
+    }
+
     @GetMapping
     public Map<String, Integer> consultarStock() {
         return stock;
     }
 
-    // Consultar stock de un ítem específico
     @GetMapping("/{item}")
-    public ResponseEntity<Map<String, Object>> consultarStockItem(@PathVariable String item) {
+    public ResponseEntity> consultarStockItem(@PathVariable String item) {
         Map<String, Object> respuesta = new HashMap<>();
         if (stock.containsKey(item)) {
             respuesta.put("producto", item);
@@ -42,7 +58,7 @@ public class InventarioController {
 
     // Descontar stock (al realizar un pedido)
     @PostMapping("/descontar")
-    public ResponseEntity<Map<String, String>> descontarStock(@RequestParam String item, @RequestParam int cantidad) {
+    public ResponseEntity> descontarStock(@RequestParam String item, @RequestParam int cantidad) {
         Map<String, String> respuesta = new HashMap<>();
 
         if (!stock.containsKey(item)) {
