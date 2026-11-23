@@ -1,4 +1,4 @@
-// Mantén tu línea "package ...;" original aquí arriba
+package com.example.pedidos360_inventario;
 
 import org.springframework.web.bind.annotation.*;
 import java.util.Map;
@@ -31,5 +31,9 @@ public class InventarioController {
             "stockActual", stockProductos.getOrDefault(nombre, 0),
             "inventario", stockProductos
         );
+    }
+
+    public void descontarStock(String producto, int cantidad) {
+        stockProductos.computeIfPresent(producto, (k, actual) -> Math.max(0, actual - cantidad));
     }
 }
