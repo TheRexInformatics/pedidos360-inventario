@@ -1,10 +1,6 @@
-package com.example.pedidos360_inventario;
+// Mantén tu línea "package ...;" original aquí arriba
 
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -12,78 +8,28 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequestMapping("/v1/inventario")
 public class InventarioController {
 
-    private final Map<String, Integer> stock = new ConcurrentHashMap<>();
-
-    private static final Map<Long, String> CATALOGO_IDS = Map.of(
-        1L, "Hamburguesa Triple",
-        2L, "Papas Supremas",
-        3L, "Bebida Grande",
-        4L, "Pizza Familiar",
-        5L, "Pastel de Chocolate"
-    );
-
-    public InventarioController() {
-        stock.put("Hamburguesa Triple", 50);
-        stock.put("Papas Supremas", 100);
-        stock.put("Bebida Grande", 80);
-        stock.put("Pizza Familiar", 30);
-        stock.put("Pastel de Chocolate", 20);
-    }
-
-    public void descontarPorId(Long productoId, int cantidad) {
-        String item = CATALOGO_IDS.getOrDefault(productoId, "Hamburguesa Triple");
-        stock.computeIfPresent(item, (k, stockActual) -> {
-            int nuevoStock = Math.max(0, stockActual - cantidad);
-            System.out.println("<<< [STOCK ACTUALIZADO] " + item + ": " + stockActual + " -> " + nuevoStock);
-            return nuevoStock;
-        });
-    }
+    // Inicia vacío: sin productos por defecto
+    private final Map<String, Integer> stockProductos = new ConcurrentHashMap<>();
 
     @GetMapping
-    public Map<String, Integer> consultarStock() {
-        return stock;
+    public Map<String, Integer> obtenerInventario() {
+        return stockProductos;
     }
 
-    @GetMapping("/{item}")
-    public ResponseEntity> consultarStockItem(@PathVariable String item) {
-        Map<String, Object> respuesta = new HashMap<>();
-        if (stock.containsKey(item)) {
-            respuesta.put("producto", item);
-            respuesta.put("disponible", stock.get(item));
-            return ResponseEntity.ok(respuesta);
-        }
-        respuesta.put("mensaje", "Producto no encontrado en el inventario");
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(respuesta);
-    }
+    @PostMapping
+    public Map<String, Object> agregarProductoInventario(@RequestBody Map<String, Object> body) {
+        String nombre = String.valueOf(body.getOrDefault("producto", body.getOrDefault("nombre", ""))).trim();
+        int stock = Integer.parseInt(String.valueOf(body.getOrDefault("stock", body.getOrDefault("cantidad", 0))));
 
-    // Descontar stock (al realizar un pedido)
-    @PostMapping("/descontar")
-    public ResponseEntity> descontarStock(@RequestParam String item, @RequestParam int cantidad) {
-        Map<String, String> respuesta = new HashMap<>();
-
-        if (!stock.containsKey(item)) {
-            respuesta.put("estado", "ERROR");
-            respuesta.put("mensaje", "Producto no encontrado");
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(respuesta);
+        if (!nombre.isEmpty() && stock >= 0) {
+            stockProductos.merge(nombre, stock, Integer::sum);
         }
 
-        int stockActual = stock.get(item);
-        if (stockActual < cantidad) {
-            respuesta.put("estado", "RECHAZADO");
-            respuesta.put("mensaje", "Stock insuficiente para " + item + ". Disponible: " + stockActual);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(respuesta);
-        }
-
-        stock.put(item, stockActual - cantidad);
-        respuesta.put("estado", "OK");
-        respuesta.put("mensaje", "Stock actualizado. Nuevo stock de " + item + ": " + (stockActual - cantidad));
-        return ResponseEntity.ok(respuesta);
-    }
-
-    // Actualizar o reponer stock manualmente
-    @PutMapping("/{item}")
-    public String actualizarStock(@PathVariable String item, @RequestParam int cantidad) {
-        stock.put(item, cantidad);
-        return "Stock de " + item + " actualizado a " + cantidad;
+        return Map.of(
+            "mensaje", "Producto registrado en inventario",
+            "producto", nombre,
+            "stockActual", stockProductos.getOrDefault(nombre, 0),
+            "inventario", stockProductos
+        );
     }
 }
