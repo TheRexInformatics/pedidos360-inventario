@@ -3,6 +3,7 @@ package com.example.pedidos360_inventario;
 import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 @RestController
 @RequestMapping("/v1/inventario")
@@ -10,6 +11,8 @@ public class InventarioController {
 
     // Inicia vacío: sin productos por defecto
     private final Map<String, Integer> stockProductos = new ConcurrentHashMap<>();
+    private final Map<Long, String> productosPorId = new ConcurrentHashMap<>();
+    private final AtomicLong secuenciaId = new AtomicLong(1);
 
     @GetMapping
     public Map<String, Integer> obtenerInventario() {
@@ -23,6 +26,9 @@ public class InventarioController {
 
         if (!nombre.isEmpty() && stock >= 0) {
             stockProductos.merge(nombre, stock, Integer::sum);
+            if (!productosPorId.containsValue(nombre)) {
+                productosPorId.put(secuenciaId.getAndIncrement(), nombre);
+            }
         }
 
         return Map.of(
@@ -31,6 +37,18 @@ public class InventarioController {
             "stockActual", stockProductos.getOrDefault(nombre, 0),
             "inventario", stockProductos
         );
+    }
+
+    public void descontarPorId(Long productoId, int cantidad) {
+        String nombre = productosPorId.get(productoId);
+        if (nombre != null) {
+            stockProductos.computeIfPresent(nombre, (k, actual) -> Math.max(0, actual - cantidad));
+            System.out.println(">>> [INVENTARIO] Descontadas " + cantidad + " unidades de " + nombre + " (ID " + productoId + ")");
+        } else if (!stockProductos.isEmpty()) {
+            String primerProducto = stockProductos.keySet().iterator().next();
+            stockProductos.computeIfPresent(primerProducto, (k, actual) -> Math.max(0, actual - cantidad));
+            System.out.println(">>> [INVENTARIO] Descontadas " + cantidad + " unidades de " + primerProducto);
+        }
     }
 
     public void descontarStock(String producto, int cantidad) {
